@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liga Cervantes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-900 text-white min-h-screen font-sans">
+
+    <!-- Header -->
+    <header class="bg-slate-800 border-b border-slate-700 p-6 text-center shadow-lg">
+        <h1 class="text-3xl font-extrabold text-emerald-400 tracking-wider uppercase">🏆 Liga Cervantes</h1>
+        <p class="text-slate-400 text-sm mt-1">Calendario Oficial y Clasificación en Tiempo Real</p>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto p-4 md:p-6 space-y-8">
+
+        <!-- Navigation Tabs -->
+        <div class="flex justify-center space-x-2 md:space-x-4 border-b border-slate-700 pb-4">
+            <button onclick="switchTab('jornadas')" id="tab-jornadas" class="px-4 md:px-6 py-2 rounded-lg font-bold bg-emerald-500 text-slate-900 transition-all shadow-md">
+                <i class="fa-solid fa-calendar-days mr-2"></i>Jornadas y Partidos
+            </button>
+            <button onclick="switchTab('clasificacion')" id="tab-clasificacion" class="px-4 md:px-6 py-2 rounded-lg font-bold bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all">
+                <i class="fa-solid fa-trophy mr-2"></i>Clasificación
+            </button>
+            <button onclick="switchTab('matriz')" id="tab-matriz" class="px-4 md:px-6 py-2 rounded-lg font-bold bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all">
+                <i class="fa-solid fa-table-cells mr-2"></i>Cuadro Directo
+            </button>
+        </div>
+
+        <!-- TAB 1: JORNADAS -->
+        <section id="sec-jornadas" class="space-y-6">
+            <!-- Selector de Jornada -->
+            <div class="flex items-center justify-between bg-slate-800 p-4 rounded-xl border border-slate-700 max-w-md mx-auto">
+                <button onclick="changeJornada(-1)" class="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-emerald-400 font-bold transition">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <span id="jornada-title" class="text-xl font-bold text-slate-100">Jornada 1</span>
+                <button onclick="changeJornada(1)" class="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-emerald-400 font-bold transition">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+
+            <!-- Lista de Partidos -->
+            <div id="matches-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
+                <div class="col-span-full text-center text-slate-400 py-8">Cargando partidos...</div>
+            </div>
+        </section>
+
+        <!-- TAB 2: CLASIFICACIÓN -->
+        <section id="sec-clasificacion" class="hidden">
+            <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-xl max-w-5xl mx-auto">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-700/50 text-slate-300 text-xs uppercase tracking-wider border-b border-slate-700">
+                                <th class="p-4 text-center">Pos</th>
+                                <th class="p-4">Equipo</th>
+                                <th class="p-4 text-center">PJ</th>
+                                <th class="p-4 text-center">PG</th>
+                                <th class="p-4 text-center">PE</th>
+                                <th class="p-4 text-center">PP</th>
+                                <th class="p-4 text-center">GF</th>
+                                <th class="p-4 text-center">GC</th>
+                                <th class="p-4 text-center font-bold text-emerald-400">PTS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clasificacion-body" class="divide-y divide-slate-700/50 text-sm">
+                            <tr><td colspan="9" class="p-6 text-center text-slate-400">Cargando clasificación...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: MATRIZ DE ENFRENTAMIENTOS -->
+        <section id="sec-matriz" class="hidden">
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 overflow-x-auto shadow-xl">
+                <h2 class="text-lg font-bold mb-4 text-emerald-400 text-center">Matriz de Enfrentamientos (Casa / Fuera)</h2>
+                <table class="w-full text-xs text-center border-collapse border border-slate-700">
+                    <thead id="matriz-head"></thead>
+                    <tbody id="matriz-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        const SHEET_ID = '14RLnRzjuY_ThpeJr3-cqWU6-HGyz86MV8NN1EqwEDL4';
+        const URL_PARTIDOS = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Partidos`;
+        const URL_CLASIFICACION = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Clasificacion`;
+
+        let teams = [];
+        let matchesData = [];
+        let currentJornada = 1;
+
+        function parseCSV(text) {
+            return text.trim().split('\n').map(row => {
+                return row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/^"|"$/g, '').trim());
+            });
+        }
+
+        // Cargar Partidos desde Google Sheets
+        fetch(URL_PARTIDOS)
+            .then(res => res.text())
+            .then(csvText => {
+                const rows = parseCSV(csvText);
+                matchesData = [];
+                const teamsSet = new Set();
+
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (row.length < 5 || !row[0]) continue;
+
+                    const j = parseInt(row[0]);
+                    const home = row[1];
+                    const golesHome = row[2];
+                    const golesAway = row[3];
+                    const away = row[4];
+
+                    if (home) teamsSet.add(home);
+                    if (away) teamsSet.add(away);
+
+                    let res = null;
+                    if (golesHome !== "" && golesAway !== "" && !isNaN(golesHome) && !isNaN(golesAway)) {
+                        res = `${golesHome} - ${golesAway}`;
+                    }
+
+                    matchesData.push({ j, home, away, res });
+                }
+
+                teams = Array.from(teamsSet).sort();
+                renderJornada(currentJornada);
+                renderMatriz();
+            })
+            .catch(err => {
+                document.getElementById('matches-container').innerHTML = 
+                    `<div class="col-span-full text-center text-red-400 font-bold p-4">⚠️ Error al cargar los partidos. Verifica que la hoja esté publicada en la web.</div>`;
+            });
+
+        // Cargar Clasificación desde Google Sheets
+        fetch(URL_CLASIFICACION)
+            .then(res => res.text())
+            .then(csvText => {
+                const rows = parseCSV(csvText);
+                const tbody = document.getElementById('clasificacion-body');
+                tbody.innerHTML = '';
+
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (row.length < 8 || !row[1]) continue;
+
+                    const pos = row[0] || i;
+                    const team = row[1];
+                    const pts = row[2] || 0;
+                    const pj = row[3] || 0;
+                    const pg = row[4] || 0;
+                    const pe = row[5] || 0;
+                    const pp = row[6] || 0;
+                    const gf = row[7] || 0;
+                    const gc = row[8] || 0;
+
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-700/30 transition border-b border-slate-700/50";
+                    tr.innerHTML = `
+                        <td class="p-4 text-center font-bold text-slate-400">${pos}</td>
+                        <td class="p-4 font-semibold text-slate-100">${team}</td>
+                        <td class="p-4 text-center">${pj}</td>
+                        <td class="p-4 text-center">${pg}</td>
+                        <td class="p-4 text-center">${pe}</td>
+                        <td class="p-4 text-center">${pp}</td>
+                        <td class="p-4 text-center">${gf}</td>
+                        <td class="p-4 text-center">${gc}</td>
+                        <td class="p-4 text-center font-bold text-emerald-400">${pts}</td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+            })
+            .catch(err => {
+                document.getElementById('clasificacion-body').innerHTML = 
+                    `<tr><td colspan="9" class="p-4 text-center text-red-400 font-bold">⚠️ Error al cargar la clasificación.</td></tr>`;
+            });
+
+        function renderJornada(j) {
+            const container = document.getElementById('matches-container');
+            document.getElementById('jornada-title').innerText = `Jornada ${j}`;
+            container.innerHTML = '';
+
+            const currentMatches = matchesData.filter(m => m.j === j);
+
+            if (currentMatches.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center text-slate-400 p-4">No hay partidos en esta jornada.</div>`;
+                return;
+            }
+
+            currentMatches.forEach(m => {
+                const card = document.createElement('div');
+                card.className = "bg-slate-800 p-4 rounded-xl border border-slate-700/80 shadow-md flex items-center justify-between";
+                
+                const scoreDisplay = m.res ? `<span class="px-3 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded font-extrabold text-sm mx-2">${m.res}</span>` : `<span class="px-3 py-1 bg-slate-900 border border-slate-700 rounded text-xs font-bold text-emerald-400 mx-2">VS</span>`;
+
+                card.innerHTML = `
+                    <div class="flex-1 text-right font-medium text-slate-200 text-sm md:text-base">${m.home}</div>
+                    ${scoreDisplay}
+                    <div class="flex-1 text-left font-medium text-slate-200 text-sm md:text-base">${m.away}</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function changeJornada(delta) {
+            currentJornada += delta;
+            if (currentJornada < 1) currentJornada = 18;
+            if (currentJornada > 18) currentJornada = 1;
+            renderJornada(currentJornada);
+        }
+
+        function renderMatriz() {
+            if (teams.length === 0) return;
+
+            const head = document.getElementById('matriz-head');
+            const body = document.getElementById('matriz-body');
+
+            let headHTML = `<tr class="bg-slate-700"><th class="p-2 border border-slate-600">CASA \\ FUERA</th>`;
+            teams.forEach(t => {
+                headHTML += `<th class="p-2 border border-slate-600 text-emerald-400 font-bold">${t}</th>`;
+            });
+            headHTML += `</tr>`;
+            head.innerHTML = headHTML;
+
+            let bodyHTML = '';
+            teams.forEach(home => {
+                bodyHTML += `<tr><td class="p-2 border border-slate-600 font-bold bg-slate-700/50 text-emerald-400 text-left">${home}</td>`;
+                teams.forEach(away => {
+                    if (home === away) {
+                        bodyHTML += `<td class="p-2 border border-slate-600 bg-slate-900/80 text-slate-600">-</td>`;
+                    } else {
+                        const match = matchesData.find(m => m.home === home && m.away === away);
+                        let cellText = match ? `J${match.j}` : '';
+                        if (match && match.res) {
+                            cellText += `<br><b class="text-emerald-400">${match.res}</b>`;
+                        }
+                        bodyHTML += `<td class="p-2 border border-slate-600 text-slate-300">${cellText}</td>`;
+                    }
+                });
+                bodyHTML += `</tr>`;
+            });
+            body.innerHTML = bodyHTML;
+        }
+
+        function switchTab(tab) {
+            document.getElementById('sec-jornadas').classList.add('hidden');
+            document.getElementById('sec-clasificacion').classList.add('hidden');
+            document.getElementById('sec-matriz').classList.add('hidden');
+
+            document.getElementById('tab-jornadas').className = "px-4 md:px-6 py-2 rounded-lg font-bold bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all";
+            document.getElementById('tab-clasificacion').className = "px-4 md:px-6 py-2 rounded-lg font-bold bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all";
+            document.getElementById('tab-matriz').className = "px-4 md:px-6 py-2 rounded-lg font-bold bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all";
+
+            document.getElementById(`sec-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).className = "px-4 md:px-6 py-2 rounded-lg font-bold bg-emerald-500 text-slate-900 transition-all shadow-md";
+        }
+    </script>
+</body>
+</html>
