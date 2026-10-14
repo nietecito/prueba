@@ -903,6 +903,42 @@
       }
     }
 
+    /* Clasificación en móvil: mostrar las columnas esenciales sin desplazamiento horizontal */
+    @media (max-width: 600px) {
+      #tab-clasificacion .table-container {
+        overflow-x: hidden;
+        width: 100%;
+      }
+      #tab-clasificacion table {
+        width: 100%;
+        min-width: 0;
+        table-layout: fixed;
+        font-size: .78rem;
+      }
+      #tab-clasificacion th,
+      #tab-clasificacion td {
+        padding: 10px 5px;
+        white-space: normal;
+      }
+      #tab-clasificacion th:nth-child(1),
+      #tab-clasificacion td:nth-child(1) { width: 16%; }
+      #tab-clasificacion th:nth-child(2),
+      #tab-clasificacion td:nth-child(2) {
+        width: 64%;
+        text-align: left;
+      }
+      #tab-clasificacion th:nth-child(3),
+      #tab-clasificacion td:nth-child(3) { width: 20%; }
+      #tab-clasificacion th:nth-child(n+4),
+      #tab-clasificacion td:nth-child(n+4) { display: none; }
+      #tab-clasificacion td.team-name {
+        overflow-wrap: anywhere;
+        word-break: normal;
+        font-size: .78rem;
+      }
+      #tab-clasificacion h2 { font-size: 1.22rem; }
+    }
+
     @media (max-width: 480px) {
       body {
         padding: 7px;
@@ -1059,6 +1095,7 @@
       box-shadow: 0 3px 12px rgba(26,54,93,.045); transition: background .18s ease;
     }
     .racha-toggle:hover { background: #f5f9ff; }
+    .racha-round-label { display: inline-block; margin-left: 7px; padding: 2px 7px; border-radius: 999px; background: #eaf2fc; color: #245a9a; font-size: .78em; font-weight: 800; vertical-align: middle; }
     .racha-toggle .racha-chevron { transition: transform .18s ease; }
     .racha-panel.open .racha-chevron { transform: rotate(180deg); }
     .racha-content { display: none; margin-top: 10px; padding: 16px; border: 1px solid var(--border-color); border-radius: 12px; background: #fff; }
@@ -2284,9 +2321,11 @@ grid.appendChild(columnaIzquierda);
   // Racha de los equipos: se calcula con los resultados ya cargados.
   const panelRacha = document.createElement('div');
   panelRacha.className = 'racha-panel';
+  const numeroJornadaRacha = extraerNumero(ultimaJornada || siguienteJornada || '');
+  const etiquetaJornadaRacha = numeroJornadaRacha !== null ? `J${numeroJornadaRacha}` : '';
   panelRacha.innerHTML = `
     <button type="button" class="racha-toggle" aria-expanded="false">
-      <span>🔥 Racha de partidos</span>
+      <span>🔥 Racha de partidos${etiquetaJornadaRacha ? ` <span class="racha-round-label">${etiquetaJornadaRacha}</span>` : ''}</span>
       <span class="racha-chevron" aria-hidden="true">⌄</span>
     </button>
     <div class="racha-content" hidden></div>
