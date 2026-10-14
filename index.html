@@ -581,9 +581,9 @@
     .detail-wide { grid-column: 1 / -1; }
     .lineups-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
     .lineup-team { min-width: 0; }
-    .lineup-team h4 { color: var(--primary-color); margin-bottom: 8px; overflow-wrap: anywhere; }
-    .lineup-team ul { padding-left: 20px; }
-    .lineup-team li { margin: 3px 0; }
+    .lineup-team h4 { color: var(--primary-color); margin: 0 0 10px; text-align: center; overflow-wrap: anywhere; }
+    .lineup-team ul { list-style: none; padding-left: 0; margin: 0; }
+    .lineup-team li { margin: 5px 0; text-align: left; }
     .stats-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid #edf2f7; text-align: center; }
     @media (max-width: 600px) {
       .tab-button { font-size: .72rem; padding: 10px 2px; }
@@ -785,7 +785,7 @@
 
     // La pestaña Detalles de tu Google Sheets (gid confirmado por el enlace).
     // La hoja debe estar compartida para que cualquiera con el enlace pueda verla.
-    const DETALLES_CSV_URL = 'https://docs.google.com/spreadsheets/d/14RLnRzjuY_ThpeJr3-cqWU6-HGyz86MV8NN1EqwEDL4/gviz/tq?tqx=out:csv&gid=847829013';
+    const DETALLES_CSV_URL = 'https://docs.google.com/spreadsheets/d/14RLnRzjuY_ThpeJr3-cqWU6-HGyz86MV8NN1EqwEDL4/gviz/tq?tqx=out:csv&sheet=Detalles';
     // Los goleadores se calculan automáticamente a partir de las filas con Tipo = Gol.
     const GOLEADORES_CSV_URL = '';
     let goleadoresGlobal = [];
@@ -1875,7 +1875,7 @@ function cargarDatosComplementarios() {
       download: true, header: true, skipEmptyLines: true,
       complete: results => {
         detallesGlobal = Array.isArray(results.data) ? results.data : [];
-        goleadoresGlobal = detallesGlobal.filter(f => valorFila(f, 'Tipo').toLocaleLowerCase('es') === 'gol');
+        goleadoresGlobal = detallesGlobal.filter(f => valorFila(f, 'Tipo').trim().toLocaleLowerCase('es') === 'gol');
         renderizarGoleadores();
       },
       error: err => console.warn('No se pudieron cargar los detalles:', err)
@@ -1896,7 +1896,7 @@ function renderizarGoleadores() {
   if (!cont) return;
   if (!goleadoresGlobal.length) {
     cont.className = 'empty-state';
-    cont.textContent = 'Aún no hay goles registrados.';
+    cont.textContent = 'Aún no hay goles registrados. Añade una fila por cada gol en la pestaña Detalles y escribe Gol en la columna Tipo.';
     return;
   }
   const acumulado = new Map();
@@ -1988,7 +1988,7 @@ function filtrarAlineacion(filas, jornada) {
 
 function htmlAlineacion(equipo, jugadores) {
   return `<div class="lineup-team"><h4>${escaparHTML(equipo)}</h4>${jugadores.length
-    ? `<ul>${jugadores.map(j => `<li>${j.dorsal ? `<strong>${escaparHTML(j.dorsal)}</strong> — ` : ''}${escaparHTML(j.jugador)}</li>`).join('')}</ul>`
+    ? `<ul>${jugadores.map(j => `<li>${j.dorsal ? `<strong>${escaparHTML(j.dorsal)}</strong> ` : ''}${escaparHTML(j.jugador)}</li>`).join('')}</ul>`
     : '<p>Sin alineación registrada para esta jornada.</p>'}</div>`;
 }
 
@@ -2005,15 +2005,18 @@ function mostrarFichaPartido(partido) {
   const estado = obtenerTexto(partido['Estado']) || (gl !== null && gv !== null ? 'Finalizado' : 'Pendiente');
   const jornadaNum = numeroJornada(ronda);
 
-  const goleadores = goleadoresGlobal.filter(g => {
+  const fuenteGoles = detallesGlobal.length ? detallesGlobal : goleadoresGlobal;
+  const goleadores = fuenteGoles.filter(g => {
     const glocal = valorFila(g, 'Equipo Local');
     const gvisit = valorFila(g, 'Equipo Visitante');
     const gj = valorFila(g, 'Jornada');
+    const tipo = valorFila(g, 'Tipo');
     const jugador = valorFila(g, 'Jugador', 'Nombre jugador', 'Nombre');
-    return Boolean(jugador) &&
-      normalizarEquipo(glocal) === normalizarEquipo(local) &&
-      normalizarEquipo(gvisit) === normalizarEquipo(visitante) &&
-      (!gj || !ronda || (numeroJornada(gj) === jornadaNum));
+    const esGol = !tipo || tipo.trim().toLocaleLowerCase('es') === 'gol';
+    const equiposCoinciden = normalizarEquipo(glocal) === normalizarEquipo(local) &&
+      normalizarEquipo(gvisit) === normalizarEquipo(visitante);
+    const jornadaCoincide = !gj || !ronda || numeroJornada(gj) === jornadaNum;
+    return Boolean(jugador) && esGol && equiposCoinciden && jornadaCoincide;
   });
   const eventos = goleadores.map(g => {
     const jugador = valorFila(g, 'Jugador', 'Nombre jugador', 'Nombre');
