@@ -1896,7 +1896,7 @@ function renderizarGoleadores() {
   if (!cont) return;
   if (!goleadoresGlobal.length) {
     cont.className = 'empty-state';
-    cont.textContent = 'Aún no hay goles registrados. Añade una fila por cada gol en la pestaña Detalles y escribe Gol en la columna Tipo.';
+    cont.textContent = 'Aún no hay goles registrados.';
     return;
   }
   const acumulado = new Map();
