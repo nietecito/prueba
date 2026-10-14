@@ -579,6 +579,22 @@
     .detail-panel p, .detail-panel li { font-size: .92rem; overflow-wrap: anywhere; }
     .detail-panel ul { padding-left: 18px; }
     .detail-wide { grid-column: 1 / -1; }
+    .goalboard { border-radius: 9px; overflow: hidden; background: #f7fafc; }
+    .goalboard-head { display: grid; grid-template-columns: minmax(0,1fr) minmax(100px,.8fr) minmax(0,1fr); align-items: center; gap: 8px; text-align: center; padding: 8px 0 12px; }
+    .goalboard-team { color: var(--primary-color); font-size: 1.05rem; font-weight: 800; overflow-wrap: anywhere; }
+    .goalboard-score { display: flex; justify-content: center; align-items: center; gap: 0; background: #edf2f7; border-radius: 7px; font-size: 1.7rem; font-weight: 800; line-height: 1.4; }
+    .goalboard-score span { flex: 1; padding: 0 8px; }
+    .goalboard-events { display: grid; gap: 5px; }
+    .goalboard-event { display: grid; grid-template-columns: minmax(0,1fr) 66px minmax(0,1fr); align-items: center; gap: 7px; font-size: .9rem; line-height: 1.35; }
+    .goalboard-event-local { text-align: right; }
+    .goalboard-event-away { text-align: left; }
+    .goalboard-event-local, .goalboard-event-away { overflow-wrap: anywhere; }
+    .goalboard-event .scorer { color: #b7791f; font-weight: 700; }
+    .goalboard-event .minute { color: #718096; font-weight: 600; white-space: nowrap; }
+    .goalboard-event-score { text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .goalboard-empty { text-align: center; color: #718096; padding: 10px 0; }
+    .detail-panel:has(.goalboard) { padding: 14px 16px; }
+    .detail-wide { grid-column: 1 / -1; }
     .lineups-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
     .lineup-team { min-width: 0; }
     .lineup-team h4 { color: var(--primary-color); margin: 0 0 10px; text-align: center; overflow-wrap: anywhere; }
@@ -2017,13 +2033,26 @@ function mostrarFichaPartido(partido) {
       normalizarEquipo(gvisit) === normalizarEquipo(visitante);
     const jornadaCoincide = !gj || !ronda || numeroJornada(gj) === jornadaNum;
     return Boolean(jugador) && esGol && equiposCoinciden && jornadaCoincide;
-  });
-  const eventos = goleadores.map(g => {
-    const jugador = valorFila(g, 'Jugador', 'Nombre jugador', 'Nombre');
-    const equipo = valorFila(g, 'Equipo');
-    const minuto = valorFila(g, 'Minuto');
-    return `<li>${escaparHTML(jugador)}${equipo ? ' · ' + escaparHTML(equipo) : ''}${minuto ? ' · ' + escaparHTML(minuto) + "'" : ''}</li>`;
+  }).map(g => ({
+    jugador: valorFila(g, 'Jugador', 'Nombre jugador', 'Nombre'),
+    equipo: valorFila(g, 'Equipo'),
+    minuto: valorFila(g, 'Minuto'),
+    minutoNumero: (String(valorFila(g, 'Minuto')).match(/\d+/) || [])[0] !== undefined
+      ? Number((String(valorFila(g, 'Minuto')).match(/\d+/) || [])[0]) : 999
+  })).sort((a, b) => a.minutoNumero - b.minutoNumero);
+
+  let parcialLocal = 0;
+  let parcialVisitante = 0;
+  const filasGoles = goleadores.map(g => {
+    const equipoNormalizado = normalizarEquipo(g.equipo);
+    const esLocal = equipoNormalizado === normalizarEquipo(local);
+    const esVisitante = equipoNormalizado === normalizarEquipo(visitante);
+    if (esLocal) parcialLocal++;
+    else if (esVisitante) parcialVisitante++;
+    const nombre = `<span class="scorer">${escaparHTML(g.jugador)}</span>${g.minuto ? ` <span class="minute">(${escaparHTML(g.minuto)}')</span>` : ''}`;
+    return `<div class="goalboard-event"><div class="goalboard-event-local">${esLocal ? nombre : ''}</div><div class="goalboard-event-score">${parcialLocal} - ${parcialVisitante}</div><div class="goalboard-event-away">${esVisitante ? nombre : ''}</div></div>`;
   }).join('');
+  const eventos = `<div class="goalboard"><div class="goalboard-head"><div class="goalboard-team">${escaparHTML(local)}</div><div class="goalboard-score"><span>${gl !== null ? gl : parcialLocal}</span><span>${gv !== null ? gv : parcialVisitante}</span></div><div class="goalboard-team">${escaparHTML(visitante)}</div></div>${filasGoles ? `<div class="goalboard-events">${filasGoles}</div>` : '<p class="goalboard-empty">Sin goles registrados para este partido.</p>'}</div>`;
 
   document.getElementById('match-modal-title').textContent = 'Ficha del partido';
   document.getElementById('match-modal-body').innerHTML = `
@@ -2032,7 +2061,7 @@ function mostrarFichaPartido(partido) {
     <div class="detail-grid">
       <div class="detail-panel"><h3>📅 Fecha y hora</h3><p>${escaparHTML(fecha || 'No especificada')}${horario ? ' · ' + escaparHTML(formatearHorario(horario)) : ''}</p></div>
       <div class="detail-panel"><h3>📍 Campo</h3><p>${escaparHTML(campo)}</p></div>
-      <div class="detail-panel detail-wide"><h3>⚽ Goles</h3>${eventos ? `<ul>${eventos}</ul>` : '<p>Sin goles registrados para este partido.</p>'}</div>
+      <div class="detail-panel detail-wide"><h3>⚽ Goles</h3>${eventos}</div>
       <div class="detail-panel detail-wide"><h3>👕 Alineaciones</h3><div id="alineaciones-partido" class="lineups-grid"><p>Cargando alineaciones...</p></div></div>
     </div>`;
 
