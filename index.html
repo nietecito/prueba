@@ -1037,6 +1037,64 @@
       }
     }
 
+  
+
+    /* ============================================================
+       ACTUALIDAD: RACHAS Y PESTAÑAS MÓVILES
+       ============================================================ */
+    .actualidad-mobile-tabs { display: none; }
+    .racha-panel { min-width: 0; }
+    .racha-toggle {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      width: 100%; padding: 16px; border: 1px solid var(--border-color);
+      border-radius: 12px; background: #fff; color: var(--secondary-color);
+      font: inherit; font-weight: 750; text-align: left; cursor: pointer;
+      box-shadow: 0 3px 12px rgba(26,54,93,.045); transition: background .18s ease;
+    }
+    .racha-toggle:hover { background: #f5f9ff; }
+    .racha-toggle .racha-chevron { transition: transform .18s ease; }
+    .racha-panel.open .racha-chevron { transform: rotate(180deg); }
+    .racha-content { display: none; margin-top: 10px; padding: 16px; border: 1px solid var(--border-color); border-radius: 12px; background: #fff; }
+    .racha-panel.open .racha-content:not([hidden]) { display: block; }
+    .racha-list { display: grid; gap: 12px; }
+    .racha-team { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px 12px; align-items: center; padding-bottom: 11px; border-bottom: 1px solid var(--border-color); }
+    .racha-team:last-child { padding-bottom: 0; border-bottom: 0; }
+    .racha-team-name { font-size: .88rem; font-weight: 700; overflow-wrap: anywhere; }
+    .racha-results { display: flex; gap: 5px; align-items: center; }
+    .racha-result { display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 7px; font-size: .78rem; font-weight: 800; }
+    .racha-result.v { color: #166534; background: #dcfce7; }
+    .racha-result.e { color: #92400e; background: #fef3c7; }
+    .racha-result.d { color: #991b1b; background: #fee2e2; }
+    .racha-points { color: #64748b; font-size: .78rem; font-weight: 700; white-space: nowrap; }
+    .racha-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; color: #64748b; font-size: .75rem; }
+    .racha-legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .racha-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+    .racha-empty { color: #718096; text-align: center; padding: 12px 4px; font-size: .9rem; }
+
+    @media (max-width: 768px) {
+      .actualidad-mobile-tabs { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; padding: 4px; margin: 0 0 14px; background: #edf2f7; border-radius: 10px; }
+      .actualidad-tab { min-width: 0; padding: 10px 3px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #4a5568; font: inherit; font-size: .78rem; font-weight: 700; cursor: pointer; }
+      .actualidad-tab.active { background: #fff; color: var(--secondary-color); border-color: #e2e8f0; box-shadow: 0 2px 5px rgba(0,0,0,.06); }
+      #proxima-jornada-contenido .proximas-jornadas-grid { grid-template-columns: minmax(0,1fr); }
+      #proxima-jornada-contenido[data-mobile-view="resultados"] .upcoming-panel,
+      #proxima-jornada-contenido[data-mobile-view="resultados"] .racha-panel { display: none; }
+      #proxima-jornada-contenido[data-mobile-view="proximos"] .results-panel,
+      #proxima-jornada-contenido[data-mobile-view="proximos"] .racha-panel { display: none; }
+      #proxima-jornada-contenido[data-mobile-view="rachas"] .results-panel,
+      #proxima-jornada-contenido[data-mobile-view="rachas"] .upcoming-panel { display: none; }
+      #proxima-jornada-contenido .racha-panel { grid-column: 1 / -1; }
+      #proxima-jornada-contenido[data-mobile-view="rachas"] .racha-toggle { display: none; }
+      #proxima-jornada-contenido[data-mobile-view="rachas"] .racha-content { display: block; margin-top: 0; }
+      .racha-toggle { padding: 14px 12px; }
+      .racha-content { padding: 13px 11px; }
+      .racha-team { grid-template-columns: minmax(0,1fr); gap: 7px; }
+      .racha-results { gap: 6px; }
+      .racha-result { width: 30px; height: 30px; }
+    }
+    @media (min-width: 769px) {
+      .actualidad-mobile-tabs { display: none !important; }
+    }
+
   </style>
 </head>
 
@@ -1184,8 +1242,14 @@
 
         <section>
           <h2>Estado de la liga</h2>
+          <div class="actualidad-mobile-tabs" role="tablist" aria-label="Secciones de actualidad">
+            <button type="button" class="actualidad-tab active" data-actualidad="resultados" role="tab" aria-selected="true">✅ Resultados</button>
+            <button type="button" class="actualidad-tab" data-actualidad="proximos" role="tab" aria-selected="false">📅 Próximos</button>
+            <button type="button" class="actualidad-tab" data-actualidad="rachas" role="tab" aria-selected="false">🔥 Rachas</button>
+          </div>
           <div
-            id="proxima-jornada-contenido">
+            id="proxima-jornada-contenido"
+            data-mobile-view="resultados">
             <!-- Se genera con JavaScript -->
           </div>
 
@@ -2031,7 +2095,7 @@ contenedor.appendChild(grid);
     const bloqueUltima =
       document.createElement('div');
 
-    bloqueUltima.className = 'round-panel';
+    bloqueUltima.className = 'round-panel results-panel';
 
     bloqueUltima.innerHTML = `
 
@@ -2075,7 +2139,7 @@ contenedor.appendChild(grid);
     const bloqueSiguiente =
       document.createElement('div');
 
-    bloqueSiguiente.className = 'round-panel';
+    bloqueSiguiente.className = 'round-panel upcoming-panel';
 
     bloqueSiguiente.innerHTML = `
 
@@ -2111,6 +2175,32 @@ contenedor.appendChild(grid);
   }
 
 
+  // Racha de los equipos: se calcula con los resultados ya cargados.
+  const panelRacha = document.createElement('div');
+  panelRacha.className = 'racha-panel';
+  panelRacha.innerHTML = `
+    <button type="button" class="racha-toggle" aria-expanded="false">
+      <span>🔥 Racha de partidos</span>
+      <span class="racha-chevron" aria-hidden="true">⌄</span>
+    </button>
+    <div class="racha-content" hidden></div>
+  `;
+  const botonRacha = panelRacha.querySelector('.racha-toggle');
+  const contenidoRacha = panelRacha.querySelector('.racha-content');
+  botonRacha.addEventListener('click', () => {
+    const abierto = panelRacha.classList.toggle('open');
+    botonRacha.setAttribute('aria-expanded', String(abierto));
+    contenidoRacha.hidden = !abierto;
+    if (abierto && !contenidoRacha.dataset.renderizado) {
+      contenidoRacha.innerHTML = renderizarRachas(partidos);
+      contenidoRacha.dataset.renderizado = 'true';
+    }
+  });
+  grid.appendChild(panelRacha);
+
+  // En móvil, las tres secciones se seleccionan mediante pestañas.
+  configurarPestanasActualidad();
+
   // ==========================================================
   // SI TODO EL TORNEO ESTÁ TERMINADO
   // ==========================================================
@@ -2144,6 +2234,77 @@ contenedor.appendChild(grid);
 
 }
 
+
+// ============================================================
+// PESTAÑAS MÓVILES DE ACTUALIDAD Y RACHA DE EQUIPOS
+// ============================================================
+function configurarPestanasActualidad() {
+  const contenedor = document.getElementById('proxima-jornada-contenido');
+  if (!contenedor || contenedor.dataset.tabsConfiguradas === 'true') return;
+  contenedor.dataset.tabsConfiguradas = 'true';
+  document.querySelectorAll('.actualidad-tab').forEach(boton => {
+    boton.addEventListener('click', () => {
+      const vista = boton.dataset.actualidad;
+      contenedor.dataset.mobileView = vista;
+      document.querySelectorAll('.actualidad-tab').forEach(otro => {
+        const activo = otro === boton;
+        otro.classList.toggle('active', activo);
+        otro.setAttribute('aria-selected', String(activo));
+      });
+      if (vista === 'rachas') {
+        const panel = contenedor.querySelector('.racha-panel');
+        const contenido = panel?.querySelector('.racha-content');
+        if (panel && contenido) {
+          panel.classList.add('open');
+          contenido.hidden = false;
+          panel.querySelector('.racha-toggle')?.setAttribute('aria-expanded', 'true');
+          if (!contenido.dataset.renderizado) {
+            contenido.innerHTML = renderizarRachas(partidosGlobal);
+            contenido.dataset.renderizado = 'true';
+          }
+        }
+      }
+    });
+  });
+}
+
+function renderizarRachas(partidos) {
+  const porEquipo = new Map();
+  (partidos || []).forEach((partido, indice) => {
+    const local = obtenerTexto(partido['Equipo Local']);
+    const visitante = obtenerTexto(partido['Equipo Visitante']);
+    const gl = convertirGoles(partido['Goles Local']);
+    const gv = convertirGoles(partido['Goles Visitante']);
+    const aplazado = obtenerTexto(partido['Estado']).toLocaleLowerCase('es') === 'aplazado';
+    if (!local || !visitante || aplazado || gl === null || gv === null) return;
+    const jornadaTexto = obtenerTexto(partido['Jornada']);
+    const jornadaNum = extraerNumero(jornadaTexto);
+    const agregar = (equipo, resultado) => {
+      if (!porEquipo.has(equipo)) porEquipo.set(equipo, []);
+      porEquipo.get(equipo).push({ resultado, jornadaNum: jornadaNum === null ? -1 : jornadaNum, indice });
+    };
+    agregar(local, gl > gv ? 'V' : gl === gv ? 'E' : 'D');
+    agregar(visitante, gv > gl ? 'V' : gl === gv ? 'E' : 'D');
+  });
+
+  const lista = [...porEquipo.entries()].map(([nombre, partidosEquipo]) => {
+    partidosEquipo.sort((a,b) => a.jornadaNum - b.jornadaNum || a.indice - b.indice);
+    const ultimos = partidosEquipo.slice(-5);
+    const puntos = ultimos.reduce((total, p) => total + (p.resultado === 'V' ? 3 : p.resultado === 'E' ? 1 : 0), 0);
+    return { nombre, ultimos, puntos, jugados: ultimos.length };
+  }).sort((a,b) => b.puntos - a.puntos || b.ultimos.filter(p=>p.resultado==='V').length - a.ultimos.filter(p=>p.resultado==='V').length || a.nombre.localeCompare(b.nombre,'es'));
+
+  if (!lista.length) return '<p class="racha-empty">Todavía no hay suficientes resultados para mostrar las rachas.</p>';
+  const filas = lista.map(equipo => `
+    <div class="racha-team">
+      <div class="racha-team-name">${escaparHTML(equipo.nombre)}</div>
+      <div class="racha-results" aria-label="Últimos ${equipo.jugados} partidos">
+        ${equipo.ultimos.map(p => `<span class="racha-result ${p.resultado.toLocaleLowerCase('es')}" title="${p.resultado === 'V' ? 'Victoria' : p.resultado === 'E' ? 'Empate' : 'Derrota'}">${p.resultado}</span>`).join('')}
+        <span class="racha-points">${equipo.puntos} pts</span>
+      </div>
+    </div>`).join('');
+  return `<div class="racha-list">${filas}</div><div class="racha-legend"><span><i style="background:#dcfce7"></i>Victoria</span><span><i style="background:#fef3c7"></i>Empate</span><span><i style="background:#fee2e2"></i>Derrota</span></div><p class="match-hint">Se muestran los últimos cinco partidos disputados de cada equipo; los aplazados y pendientes no cuentan.</p>`;
+}
 
 // ============================================================
 // CREAR LISTA DE PARTIDOS
