@@ -612,7 +612,44 @@
       .match-scoreline .big-score { font-size: 1.35rem; }
     }
 
-  </style>
+  
+    /* Ajustes exclusivos para móviles: ficha y tabla de goleadores */
+    @media screen and (max-width: 600px) {
+      .match-modal { padding: 4px; }
+      .match-modal-card {
+        width: 100%;
+        padding: 16px 10px;
+        border-radius: 10px;
+      }
+      .match-modal-card > h2 { font-size: 1.2rem; padding-right: 34px; }
+      .match-modal-card .subtitulo { font-size: .78rem; margin: 8px 0; }
+      .match-scoreline { grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); gap: 4px; margin: 12px 0; }
+      .match-scoreline .team-name { font-size: .78rem; line-height: 1.2; }
+      .match-scoreline .big-score { font-size: 1.15rem; }
+      .detail-grid { gap: 7px; margin-top: 10px; }
+      .detail-panel { padding: 9px; border-radius: 8px; }
+      .detail-panel h3 { font-size: .86rem; margin-bottom: 5px; }
+      .detail-panel p, .detail-panel li { font-size: .78rem; line-height: 1.3; }
+      .goalboard { padding: 7px; }
+      .goalboard-event { grid-template-columns: minmax(0,1fr) 43px minmax(0,1fr); gap: 3px; font-size: .68rem; line-height: 1.25; }
+      .goalboard-event-score { font-size: .65rem; }
+      .goalboard-event .minute { white-space: normal; }
+      .lineups-grid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+      .lineup-team h4 { font-size: .76rem; line-height: 1.2; margin-bottom: 6px; }
+      .lineup-team li { font-size: .68rem !important; line-height: 1.25; margin: 4px 0; overflow-wrap: anywhere; }
+      .scorers-table { table-layout: fixed; }
+      .scorers-table th, .scorers-table td { padding: 7px 3px; font-size: .68rem; line-height: 1.25; overflow-wrap: anywhere; }
+      .scorers-table th:nth-child(1), .scorers-table td:nth-child(1) { width: 9%; }
+      .scorers-table th:nth-child(2), .scorers-table td:nth-child(2) { width: 36%; }
+      .scorers-table th:nth-child(3), .scorers-table td:nth-child(3) { width: 39%; }
+      .scorers-table th:nth-child(4), .scorers-table td:nth-child(4) { width: 16%; }
+      #tab-goleadores section { padding: 12px 8px; }
+      #tab-goleadores h2 { font-size: 1.35rem; }
+      #tab-goleadores .subtitulo { font-size: .9rem; }
+      #tab-goleadores .table-container { overflow-x: hidden; }
+    }
+
+</style>
 </head>
 
 <body>
@@ -2052,7 +2089,7 @@ function mostrarFichaPartido(partido) {
     const nombre = `<span class="scorer">${escaparHTML(g.jugador)}</span>${g.minuto ? ` <span class="minute">(${escaparHTML(g.minuto)}')</span>` : ''}`;
     return `<div class="goalboard-event"><div class="goalboard-event-local">${esLocal ? nombre : ''}</div><div class="goalboard-event-score">${parcialLocal} - ${parcialVisitante}</div><div class="goalboard-event-away">${esVisitante ? nombre : ''}</div></div>`;
   }).join('');
-  const eventos = `<div class="goalboard"><div class="goalboard-head"><div class="goalboard-team">${escaparHTML(local)}</div><div class="goalboard-score"><span>${gl !== null ? gl : parcialLocal}</span><span>${gv !== null ? gv : parcialVisitante}</span></div><div class="goalboard-team">${escaparHTML(visitante)}</div></div>${filasGoles ? `<div class="goalboard-events">${filasGoles}</div>` : '<p class="goalboard-empty">Sin goles registrados para este partido.</p>'}</div>`;
+  const eventos = `<div class="goalboard">${filasGoles ? `<div class="goalboard-events">${filasGoles}</div>` : '<p class="goalboard-empty">Sin goles registrados para este partido.</p>'}</div>`;
 
   document.getElementById('match-modal-title').textContent = 'Ficha del partido';
   document.getElementById('match-modal-body').innerHTML = `
