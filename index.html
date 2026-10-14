@@ -1044,6 +1044,13 @@
        ============================================================ */
     .actualidad-mobile-tabs { display: none; }
     .racha-panel { min-width: 0; }
+    .actualidad-left-stack > .results-panel,
+    .actualidad-left-stack > .racha-panel {
+      background: #fff;
+      border: 1px solid #e0e8f2;
+      border-radius: 13px;
+      box-shadow: 0 3px 12px rgba(26,54,93,.045);
+    }
     .racha-toggle {
       display: flex; align-items: center; justify-content: space-between; gap: 12px;
       width: 100%; padding: 16px; border: 1px solid var(--border-color);
@@ -1071,7 +1078,103 @@
     .racha-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
     .racha-empty { color: #718096; text-align: center; padding: 12px 4px; font-size: .9rem; }
 
+    /* Diseño de escritorio: resultados y rachas comparten la columna izquierda */
+    @media (min-width: 769px) {
+      .proximas-jornadas-grid {
+        align-items: stretch;
+      }
+      .actualidad-left-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-width: 0;
+        min-height: 0;
+        height: 100%;
+      }
+      .actualidad-left-stack > .results-panel,
+      .actualidad-left-stack > .racha-panel {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        padding: 0;
+        transition: flex-grow .22s ease, flex-basis .22s ease;
+      }
+      .actualidad-left-stack > .results-panel.is-expanded,
+      .actualidad-left-stack > .racha-panel.open {
+        flex: 1 1 0;
+      }
+      .actualidad-left-stack > .results-panel:not(.is-expanded),
+      .actualidad-left-stack > .racha-panel:not(.open) {
+        flex: 0 0 auto;
+      }
+      .results-toggle {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        padding: 15px 42px 15px 16px;
+        border: 0;
+        border-radius: 12px;
+        background: #fff;
+        color: var(--secondary-color);
+        font: inherit;
+        text-align: center;
+        cursor: pointer;
+      }
+      .results-toggle:hover { background: #f5f9ff; }
+      .results-toggle .next-round-header { margin: 0; }
+      .results-toggle .next-round-title { font-weight: 750; }
+      .results-toggle .next-round-description { margin-top: 4px; }
+      .results-toggle .results-chevron {
+        position: absolute;
+        right: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        transition: transform .18s ease;
+      }
+      .results-panel.is-expanded .results-chevron { transform: translateY(-50%) rotate(180deg); }
+      .results-content {
+        display: none;
+        min-height: 0;
+        overflow: auto;
+        padding: 0 18px 12px;
+      }
+      .results-panel.is-expanded .results-content { display: block; }
+      .results-panel:not(.is-expanded) .next-round-description { display: none; }
+      .actualidad-left-stack .racha-toggle {
+        flex: 0 0 auto;
+        border: 0;
+        box-shadow: none;
+      }
+      .actualidad-left-stack .racha-content {
+        min-height: 0;
+        overflow: auto;
+        margin: 0 12px 12px;
+      }
+      .proximas-jornadas-grid > .upcoming-panel {
+        height: 100%;
+        box-sizing: border-box;
+      }
+    }
+
     @media (max-width: 768px) {
+      .actualidad-left-stack { display: contents; }
+      .results-toggle {
+        display: block;
+        width: 100%;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        cursor: default;
+        text-align: center;
+      }
+      .results-toggle .results-chevron { display: none; }
+      .results-content { display: block !important; padding: 0; overflow: visible; }
       .actualidad-mobile-tabs { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; padding: 4px; margin: 0 0 14px; background: #edf2f7; border-radius: 10px; }
       .actualidad-tab { min-width: 0; padding: 10px 3px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #4a5568; font: inherit; font-size: .78rem; font-weight: 700; cursor: pointer; }
       .actualidad-tab.active { background: #fff; color: var(--secondary-color); border-color: #e2e8f0; box-shadow: 0 2px 5px rgba(0,0,0,.06); }
@@ -1986,6 +2089,12 @@ grid.className =
 
 contenedor.appendChild(grid);
 
+// En ordenador, resultados y rachas comparten una columna izquierda.
+// En móvil, CSS aplana este contenedor para conservar las tres pestañas.
+const columnaIzquierda = document.createElement('div');
+columnaIzquierda.className = 'actualidad-left-stack';
+grid.appendChild(columnaIzquierda);
+
   
   const jornadas =
     agruparJornadas(partidos);
@@ -2097,35 +2206,32 @@ contenedor.appendChild(grid);
 
     bloqueUltima.className = 'round-panel results-panel';
 
+    bloqueUltima.classList.add('is-expanded');
     bloqueUltima.innerHTML = `
-
-      <div class="next-round-header">
-
-        <div class="next-round-title">
-          ✅ Últimos Resultados
-        </div>
-
-        <div class="next-round-description">
-          ${escaparHTML(ultimaJornada)}
-        </div>
-
-      </div>
-
+      <button type="button" class="results-toggle" aria-expanded="true">
+        <span class="next-round-header">
+          <span class="next-round-title">✅ Últimos Resultados</span>
+          <span class="next-round-description">${escaparHTML(ultimaJornada)}</span>
+        </span>
+        <span class="results-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <div class="results-content"></div>
     `;
 
-    grid.appendChild(
-      bloqueUltima
-    );
+    columnaIzquierda.appendChild(bloqueUltima);
 
+    const contenidoResultados = bloqueUltima.querySelector('.results-content');
+    const partidosUltima = crearListaPartidos(jornadas[ultimaJornada]);
+    contenidoResultados.appendChild(partidosUltima);
 
-    const partidosUltima =
-      crearListaPartidos(
-        jornadas[ultimaJornada]
-      );
-
-    bloqueUltima.appendChild(
-      partidosUltima
-    );
+    bloqueUltima.querySelector('.results-toggle').addEventListener('click', () => {
+      // Siempre queda abierto uno de los dos paneles de la izquierda.
+      bloqueUltima.classList.add('is-expanded');
+      bloqueUltima.querySelector('.results-toggle').setAttribute('aria-expanded', 'true');
+      panelRacha.classList.remove('open');
+      botonRacha.setAttribute('aria-expanded', 'false');
+      contenidoRacha.hidden = true;
+    });
 
   }
 
@@ -2188,15 +2294,20 @@ contenedor.appendChild(grid);
   const botonRacha = panelRacha.querySelector('.racha-toggle');
   const contenidoRacha = panelRacha.querySelector('.racha-content');
   botonRacha.addEventListener('click', () => {
-    const abierto = panelRacha.classList.toggle('open');
-    botonRacha.setAttribute('aria-expanded', String(abierto));
-    contenidoRacha.hidden = !abierto;
-    if (abierto && !contenidoRacha.dataset.renderizado) {
+    panelRacha.classList.add('open');
+    botonRacha.setAttribute('aria-expanded', 'true');
+    contenidoRacha.hidden = false;
+    if (!contenidoRacha.dataset.renderizado) {
       contenidoRacha.innerHTML = renderizarRachas(partidos);
       contenidoRacha.dataset.renderizado = 'true';
     }
+    const panelResultados = columnaIzquierda.querySelector('.results-panel');
+    if (panelResultados) {
+      panelResultados.classList.remove('is-expanded');
+      panelResultados.querySelector('.results-toggle')?.setAttribute('aria-expanded', 'false');
+    }
   });
-  grid.appendChild(panelRacha);
+  columnaIzquierda.appendChild(panelRacha);
 
   // En móvil, las tres secciones se seleccionan mediante pestañas.
   configurarPestanasActualidad();
