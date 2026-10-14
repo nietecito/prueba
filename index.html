@@ -579,6 +579,11 @@
     .detail-panel p, .detail-panel li { font-size: .92rem; overflow-wrap: anywhere; }
     .detail-panel ul { padding-left: 18px; }
     .detail-wide { grid-column: 1 / -1; }
+    .lineups-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .lineup-team { min-width: 0; }
+    .lineup-team h4 { color: var(--primary-color); margin-bottom: 8px; overflow-wrap: anywhere; }
+    .lineup-team ul { padding-left: 20px; }
+    .lineup-team li { margin: 3px 0; }
     .stats-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid #edf2f7; text-align: center; }
     @media (max-width: 600px) {
       .tab-button { font-size: .72rem; padding: 10px 2px; }
@@ -586,6 +591,7 @@
       .match-modal-card { padding: 20px 13px; }
       .detail-grid { grid-template-columns: 1fr; }
       .detail-wide { grid-column: auto; }
+      .lineups-grid { grid-template-columns: 1fr; }
       .match-scoreline { gap: 6px; }
       .match-scoreline .big-score { font-size: 1.35rem; }
     }
@@ -1927,13 +1933,65 @@ function encontrarPartidoDesdeElemento(el) {
   }) || partidosGlobal.find(p => obtenerTexto(p['Equipo Local']).toLocaleLowerCase('es') === local.toLocaleLowerCase('es') && obtenerTexto(p['Equipo Visitante']).toLocaleLowerCase('es') === visitante.toLocaleLowerCase('es'));
 }
 
-function listaTexto(texto) {
-  return String(texto || '').split(/[;,\n]/).map(x=>x.trim()).filter(Boolean);
+function normalizarEquipo(valor) {
+  return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('es').replace(/\bfc\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 }
-function bloqueLista(titulo, texto) {
-  const elementos = listaTexto(texto);
-  return `<div class="detail-panel"><h3>${titulo}</h3>${elementos.length ? `<ul>${elementos.map(x=>`<li>${escaparHTML(x)}</li>`).join('')}</ul>` : '<p>Sin información registrada.</p>'}</div>`;
+
+function numeroJornada(valor) {
+  const m = String(valor || '').match(/(?:jornada|j)\s*(\d+)/i);
+  return m ? Number(m[1]) : null;
 }
+
+const cacheAlineaciones = new Map();
+
+function obtenerAlineacionEquipo(equipo, jornada) {
+  const clave = normalizarEquipo(equipo);
+  if (!clave || !jornada) return Promise.resolve([]);
+  if (cacheAlineaciones.has(clave)) {
+    return cacheAlineaciones.get(clave).then(filas => filtrarAlineacion(filas, jornada));
+  }
+
+  // Los nombres de las pestañas de equipos coinciden con el nombre del equipo,
+  // aunque se ignora el sufijo "FC" cuando el nombre de la pestaña no lo incluye.
+  const nombreSinFC = String(equipo).replace(/\bFC\b/ig, '').replace(/\s+/g, ' ').trim();
+  const nombresPestana = [...new Set([equipo, nombreSinFC])];
+  const leerPestana = indice => new Promise(resolve => {
+    if (indice >= nombresPestana.length) { resolve([]); return; }
+    const url = 'https://docs.google.com/spreadsheets/d/14RLnRzjuY_ThpeJr3-cqWU6-HGyz86MV8NN1EqwEDL4/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(nombresPestana[indice]) + '&_=' + Date.now();
+    Papa.parse(url, {
+      download: true, header: true, skipEmptyLines: true,
+      complete: results => {
+        const filas = Array.isArray(results.data) ? results.data : [];
+        const headers = results.meta && results.meta.fields ? results.meta.fields : [];
+        if (headers.some(h => /dorsal/i.test(h)) && headers.some(h => /jugador/i.test(h))) resolve(filas);
+        else leerPestana(indice + 1).then(resolve);
+      },
+      error: () => leerPestana(indice + 1).then(resolve)
+    });
+  });
+  const peticion = leerPestana(0);
+  cacheAlineaciones.set(clave, peticion);
+  return peticion.then(filas => filtrarAlineacion(filas, jornada));
+}
+
+function filtrarAlineacion(filas, jornada) {
+  const encabezado = 'J' + jornada;
+  return (filas || []).filter(f => {
+    const marca = valorFila(f, encabezado, 'Jornada ' + jornada);
+    return /^x$/i.test(marca) || /^si$/i.test(marca) || /^sí$/i.test(marca);
+  }).map(f => ({
+    dorsal: valorFila(f, 'DORSAL', 'Dorsal', 'Número', 'Numero'),
+    jugador: valorFila(f, 'JUGADOR', 'Jugador', 'Nombre')
+  })).filter(j => j.jugador);
+}
+
+function htmlAlineacion(equipo, jugadores) {
+  return `<div class="lineup-team"><h4>${escaparHTML(equipo)}</h4>${jugadores.length
+    ? `<ul>${jugadores.map(j => `<li>${j.dorsal ? `<strong>${escaparHTML(j.dorsal)}</strong> — ` : ''}${escaparHTML(j.jugador)}</li>`).join('')}</ul>`
+    : '<p>Sin alineación registrada para esta jornada.</p>'}</div>`;
+}
+
 function mostrarFichaPartido(partido) {
   if (!partido) return;
   const local = obtenerTexto(partido['Equipo Local']);
@@ -1945,37 +2003,52 @@ function mostrarFichaPartido(partido) {
   const fecha = obtenerTexto(partido['Fecha']) || obtenerTexto(partido['Día']) || ronda;
   const campo = obtenerTexto(partido['Campo']) || 'No especificado';
   const estado = obtenerTexto(partido['Estado']) || (gl !== null && gv !== null ? 'Finalizado' : 'Pendiente');
-  const extra = detallesGlobal.find(d => {
-    const dl=valorFila(d,'Equipo Local'), dv=valorFila(d,'Equipo Visitante'), dj=valorFila(d,'Jornada');
-    return dl.toLocaleLowerCase('es')===local.toLocaleLowerCase('es') && dv.toLocaleLowerCase('es')===visitante.toLocaleLowerCase('es') && (!dj || !ronda || dj.toLocaleLowerCase('es')===ronda.toLocaleLowerCase('es'));
-  }) || {};
+  const jornadaNum = numeroJornada(ronda);
+
   const goleadores = goleadoresGlobal.filter(g => {
-    const glocal=valorFila(g,'Equipo Local'), gvisit=valorFila(g,'Equipo Visitante'), gj=valorFila(g,'Jornada');
-    return (!glocal || glocal.toLocaleLowerCase('es')===local.toLocaleLowerCase('es')) && (!gvisit || gvisit.toLocaleLowerCase('es')===visitante.toLocaleLowerCase('es')) && (!gj || !ronda || gj.toLocaleLowerCase('es')===ronda.toLocaleLowerCase('es'));
+    const glocal = valorFila(g, 'Equipo Local');
+    const gvisit = valorFila(g, 'Equipo Visitante');
+    const gj = valorFila(g, 'Jornada');
+    const jugador = valorFila(g, 'Jugador', 'Nombre jugador', 'Nombre');
+    return Boolean(jugador) &&
+      normalizarEquipo(glocal) === normalizarEquipo(local) &&
+      normalizarEquipo(gvisit) === normalizarEquipo(visitante) &&
+      (!gj || !ronda || (numeroJornada(gj) === jornadaNum));
   });
-  const eventos = goleadores.map(g=>`<li>${escaparHTML(valorFila(g,'Jugador','Nombre jugador','Nombre') || 'Jugador')} · ${escaparHTML(valorFila(g,'Equipo') || '')}${valorFila(g,'Minuto') ? ' · '+escaparHTML(valorFila(g,'Minuto'))+'\'' : ''}${valorFila(g,'Goles') && Number(valorFila(g,'Goles'))>1 ? ' · '+escaparHTML(valorFila(g,'Goles'))+' goles' : ''}</li>`).join('');
-  const stats = [
-    ['Posesión', 'Posesión Local', 'Posesión Visitante'], ['Tiros', 'Tiros Local', 'Tiros Visitante'],
-    ['Córneres', 'Córneres Local', 'Córneres Visitante']
-  ];
-  const statsHtml = stats.map(([label,a,b])=>`<div class="stats-row"><span>${escaparHTML(valorFila(extra,a)||'—')}</span><strong>${label}</strong><span>${escaparHTML(valorFila(extra,b)||'—')}</span></div>`).join('');
+  const eventos = goleadores.map(g => {
+    const jugador = valorFila(g, 'Jugador', 'Nombre jugador', 'Nombre');
+    const equipo = valorFila(g, 'Equipo');
+    const minuto = valorFila(g, 'Minuto');
+    return `<li>${escaparHTML(jugador)}${equipo ? ' · ' + escaparHTML(equipo) : ''}${minuto ? ' · ' + escaparHTML(minuto) + "'" : ''}</li>`;
+  }).join('');
+
   document.getElementById('match-modal-title').textContent = 'Ficha del partido';
   document.getElementById('match-modal-body').innerHTML = `
     <p class="subtitulo">${escaparHTML(ronda || 'Liga Cervantes')} · ${escaparHTML(estado)}</p>
-    <div class="match-scoreline"><div class="team-name">${escaparHTML(local)}</div><div class="big-score">${gl!==null && gv!==null ? `${gl} - ${gv}` : escaparHTML(horario ? formatearHorario(horario) : estado)}</div><div class="team-name">${escaparHTML(visitante)}</div></div>
+    <div class="match-scoreline"><div class="team-name">${escaparHTML(local)}</div><div class="big-score">${gl !== null && gv !== null ? `${gl} - ${gv}` : escaparHTML(horario ? formatearHorario(horario) : estado)}</div><div class="team-name">${escaparHTML(visitante)}</div></div>
     <div class="detail-grid">
-      <div class="detail-panel"><h3>📅 Fecha y hora</h3><p>${escaparHTML(fecha || 'No especificada')}${horario ? ' · '+escaparHTML(formatearHorario(horario)) : ''}</p></div>
+      <div class="detail-panel"><h3>📅 Fecha y hora</h3><p>${escaparHTML(fecha || 'No especificada')}${horario ? ' · ' + escaparHTML(formatearHorario(horario)) : ''}</p></div>
       <div class="detail-panel"><h3>📍 Campo</h3><p>${escaparHTML(campo)}</p></div>
-      <div class="detail-panel detail-wide"><h3>⚽ Goleadores</h3>${eventos ? `<ul>${eventos}</ul>` : '<p>Sin goleadores registrados para este partido.</p>'}</div>
-      ${bloqueLista('👕 Alineación local', valorFila(extra,'Alineación Local','Titulares Local'))}
-      ${bloqueLista('👕 Suplentes local', valorFila(extra,'Suplentes Local'))}
-      ${bloqueLista('👕 Alineación visitante', valorFila(extra,'Alineación Visitante','Titulares Visitante'))}
-      ${bloqueLista('👕 Suplentes visitante', valorFila(extra,'Suplentes Visitante'))}
-      <div class="detail-panel detail-wide"><h3>📊 Estadísticas</h3><div class="stats-row"><span>${escaparHTML(local)}</span><strong>Dato</strong><span>${escaparHTML(visitante)}</span></div>${statsHtml}<p class="match-hint">Las estadísticas se mostrarán cuando se registren en Google Sheets.</p></div>
-      <div class="detail-panel detail-wide"><h3>📝 Crónica</h3><p>${escaparHTML(valorFila(extra,'Crónica','Cronica') || 'Todavía no hay una crónica añadida.')}</p></div>
+      <div class="detail-panel detail-wide"><h3>⚽ Goles</h3>${eventos ? `<ul>${eventos}</ul>` : '<p>Sin goles registrados para este partido.</p>'}</div>
+      <div class="detail-panel detail-wide"><h3>👕 Alineaciones</h3><div id="alineaciones-partido" class="lineups-grid"><p>Cargando alineaciones...</p></div></div>
     </div>`;
+
   document.getElementById('match-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
+
+  const contenedorAlineaciones = document.getElementById('alineaciones-partido');
+  if (!jornadaNum) {
+    contenedorAlineaciones.innerHTML = '<p>No se pudo identificar la jornada del partido.</p>';
+  } else {
+    Promise.all([obtenerAlineacionEquipo(local, jornadaNum), obtenerAlineacionEquipo(visitante, jornadaNum)])
+      .then(([jugadoresLocal, jugadoresVisitante]) => {
+        // No actualizar si el usuario ya ha abierto otra ficha.
+        if (!document.getElementById('match-modal').classList.contains('open')) return;
+        const actual = document.getElementById('alineaciones-partido');
+        if (!actual) return;
+        actual.innerHTML = htmlAlineacion(local, jugadoresLocal) + htmlAlineacion(visitante, jugadoresVisitante);
+      });
+  }
 }
 
 function cerrarFichaPartido() {
