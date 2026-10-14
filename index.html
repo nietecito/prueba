@@ -1100,16 +1100,17 @@
     .racha-panel.open .racha-chevron { transform: rotate(180deg); }
     .racha-content { display: none; margin-top: 10px; padding: 16px; border: 1px solid var(--border-color); border-radius: 12px; background: #fff; }
     .racha-panel.open .racha-content:not([hidden]) { display: block; }
-    .racha-list { display: grid; gap: 12px; }
-    .racha-team { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px 12px; align-items: center; padding-bottom: 11px; border-bottom: 1px solid var(--border-color); }
+    .racha-list { display: grid; gap: 7px; }
+    .racha-team { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 6px 9px; align-items: center; padding-bottom: 7px; border-bottom: 1px solid var(--border-color); }
     .racha-team:last-child { padding-bottom: 0; border-bottom: 0; }
-    .racha-team-name { font-size: .88rem; font-weight: 700; overflow-wrap: anywhere; }
-    .racha-results { display: flex; gap: 5px; align-items: center; }
-    .racha-result { display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 7px; font-size: .78rem; font-weight: 800; }
+    .racha-team-name { font-size: .78rem; font-weight: 700; overflow-wrap: anywhere; }
+    .racha-results { display: flex; gap: 4px; align-items: center; }
+    .racha-result { display: inline-flex; width: 23px; height: 23px; align-items: center; justify-content: center; border-radius: 6px; font-size: .68rem; font-weight: 800; flex: 0 0 auto; }
     .racha-result.v { color: #166534; background: #dcfce7; }
     .racha-result.e { color: #92400e; background: #fef3c7; }
     .racha-result.d { color: #991b1b; background: #fee2e2; }
-    .racha-points { color: #64748b; font-size: .78rem; font-weight: 700; white-space: nowrap; }
+    .racha-result.pending { color: #64748b; background: #e2e8f0; border: 1px solid #cbd5e1; }
+    .racha-points { color: #64748b; font-size: .7rem; font-weight: 700; white-space: nowrap; }
     .racha-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; color: #64748b; font-size: .75rem; }
     .racha-legend span { display: inline-flex; align-items: center; gap: 5px; }
     .racha-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
@@ -2420,40 +2421,50 @@ function configurarPestanasActualidad() {
 
 function renderizarRachas(partidos) {
   const porEquipo = new Map();
+  // Registrar todos los equipos, incluso si todavía no han disputado un partido.
+  (partidos || []).forEach(partido => {
+    const local = obtenerTexto(partido['Equipo Local']);
+    const visitante = obtenerTexto(partido['Equipo Visitante']);
+    if (local && !porEquipo.has(local)) porEquipo.set(local, []);
+    if (visitante && !porEquipo.has(visitante)) porEquipo.set(visitante, []);
+  });
+
   (partidos || []).forEach((partido, indice) => {
     const local = obtenerTexto(partido['Equipo Local']);
     const visitante = obtenerTexto(partido['Equipo Visitante']);
     const gl = convertirGoles(partido['Goles Local']);
     const gv = convertirGoles(partido['Goles Visitante']);
-    const aplazado = obtenerTexto(partido['Estado']).toLocaleLowerCase('es') === 'aplazado';
-    if (!local || !visitante || aplazado || gl === null || gv === null) return;
+    const estado = obtenerTexto(partido['Estado']).toLocaleLowerCase('es');
+    // Los aplazados y los encuentros sin resultado no cuentan como jugados.
+    if (!local || !visitante || estado === 'aplazado' || gl === null || gv === null) return;
     const jornadaTexto = obtenerTexto(partido['Jornada']);
     const jornadaNum = extraerNumero(jornadaTexto);
     const agregar = (equipo, resultado) => {
-      if (!porEquipo.has(equipo)) porEquipo.set(equipo, []);
       porEquipo.get(equipo).push({ resultado, jornadaNum: jornadaNum === null ? -1 : jornadaNum, indice });
     };
     agregar(local, gl > gv ? 'V' : gl === gv ? 'E' : 'D');
-    agregar(visitante, gv > gl ? 'V' : gl === gv ? 'E' : 'D');
+    agregar(visitante, gv > gl ? 'V' : gv === gl ? 'E' : 'D');
   });
 
   const lista = [...porEquipo.entries()].map(([nombre, partidosEquipo]) => {
     partidosEquipo.sort((a,b) => a.jornadaNum - b.jornadaNum || a.indice - b.indice);
     const ultimos = partidosEquipo.slice(-5);
     const puntos = ultimos.reduce((total, p) => total + (p.resultado === 'V' ? 3 : p.resultado === 'E' ? 1 : 0), 0);
-    return { nombre, ultimos, puntos, jugados: ultimos.length };
-  }).sort((a,b) => b.puntos - a.puntos || b.ultimos.filter(p=>p.resultado==='V').length - a.ultimos.filter(p=>p.resultado==='V').length || a.nombre.localeCompare(b.nombre,'es'));
+    return { nombre, ultimos, puntos, jugados: ultimos.length, victorias: ultimos.filter(p => p.resultado === 'V').length };
+  }).sort((a,b) => b.puntos - a.puntos || b.victorias - a.victorias || a.nombre.localeCompare(b.nombre,'es'));
 
-  if (!lista.length) return '<p class="racha-empty">Todavía no hay suficientes resultados para mostrar las rachas.</p>';
-  const filas = lista.map(equipo => `
+  if (!lista.length) return '<p class="racha-empty">Todavía no hay equipos para mostrar las rachas.</p>';
+  const filas = lista.map(equipo => {
+    const huecos = Math.max(0, 5 - equipo.ultimos.length);
+    const casillas = Array.from({length: huecos}, () => '<span class="racha-result pending" title="Partido pendiente o todavía no disputado" aria-label="Partido pendiente">–</span>').join('');
+    const resultados = equipo.ultimos.map(p => `<span class="racha-result ${p.resultado.toLocaleLowerCase('es')}" title="${p.resultado === 'V' ? 'Victoria' : p.resultado === 'E' ? 'Empate' : 'Derrota'}">${p.resultado}</span>`).join('');
+    return `
     <div class="racha-team">
       <div class="racha-team-name">${escaparHTML(equipo.nombre)}</div>
-      <div class="racha-results" aria-label="Últimos ${equipo.jugados} partidos">
-        ${equipo.ultimos.map(p => `<span class="racha-result ${p.resultado.toLocaleLowerCase('es')}" title="${p.resultado === 'V' ? 'Victoria' : p.resultado === 'E' ? 'Empate' : 'Derrota'}">${p.resultado}</span>`).join('')}
-        <span class="racha-points">${equipo.puntos} pts</span>
-      </div>
-    </div>`).join('');
-  return `<div class="racha-list">${filas}</div><div class="racha-legend"><span><i style="background:#dcfce7"></i>Victoria</span><span><i style="background:#fef3c7"></i>Empate</span><span><i style="background:#fee2e2"></i>Derrota</span></div><p class="match-hint">Se muestran los últimos cinco partidos disputados de cada equipo; los aplazados y pendientes no cuentan.</p>`;
+      <div class="racha-results" aria-label="Últimos ${equipo.jugados} partidos">${casillas}${resultados}<span class="racha-points">${equipo.puntos} pts</span></div>
+    </div>`;
+  }).join('');
+  return `<div class="racha-list">${filas}</div><div class="racha-legend"><span><i style="background:#dcfce7"></i>Victoria</span><span><i style="background:#fef3c7"></i>Empate</span><span><i style="background:#fee2e2"></i>Derrota</span><span><i style="background:#e2e8f0"></i>Pendiente</span></div><p class="match-hint">Se muestran los últimos cinco partidos disputados de cada equipo; los aplazados y pendientes no cuentan.</p>`;
 }
 
 // ============================================================
